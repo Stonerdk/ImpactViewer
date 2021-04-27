@@ -1,7 +1,7 @@
 from glob import glob
 import matplotlib.pyplot as plt 
 
-data_dir = "./data_apgujung"
+data_dir = "./data"
 file_list = glob(f"{data_dir}/*.txt")
 impacts = [59, 67, 86, 81, 50, 51, 61, 61, 65, 57, 61, 58, 56, 64, 59, 52, 64, 45, 50, 51, 47, 69, 65, 90, 83, 68, 108, 56, 58, 53, 55, 55, 55, 59] 
 for f_idx, f_name in enumerate(file_list):

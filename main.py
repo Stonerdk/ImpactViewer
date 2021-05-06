@@ -4,8 +4,7 @@ import numpy as np
 from matplotlib.animation import FuncAnimation
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib import pyplot as plt
-import tkinter as tk
-from tkinter import ttk
+from matplotlib.widgets import RadioButtons
 
 def get_impact_time(filename):
     coplist = []
@@ -38,14 +37,14 @@ class ImpactGraph:
         cops, impact = get_impact_time(filename)
 
 class Viewer:
-    def __init__(self, idx, root):
+    def __init__(self, idx):
         global coplist
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111)
         self.setup(idx)
-        self.canvas = FigureCanvasTkAgg(self.fig, master = root)
-        self.canvas.get_tk_widget().pack(fill='both', expand=True)
-        self.canvas.get_tk_widget().bind('r', lambda event : self.reset())
+        # self.canvas = FigureCanvasTkAgg(self.fig, master = root)
+        # self.canvas.get_tk_widget().pack(fill='both', expand=True)
+        # self.canvas.get_tk_widget().bind('r', lambda event : self.reset())
 
     def setup(self, idx):
         self.idx = idx
@@ -91,23 +90,27 @@ for si, s in enumerate(sol):
     print(flist[si], " : evaluated impact time = ", s, "real impact time = ", impacts[si], "error = ", impacts[si] - s)
 
 # initialize TK gui and figure
-root = tk.Tk()
-root.attributes('-fullscreen', True)
-root.title("Impact Viewer")
-lframe = ttk.Frame(root)
-lframe.pack(side = "left")
-rframe = ttk.Frame(root)
-rframe.pack(side = "right")
-view = Viewer(0, rframe)
-btns = []
+# root = tk.Tk()
+# root.attributes('-fullscreen', True)
+# root.title("Impact Viewer")
+# lframe = ttk.Frame(root)
+# lframe.pack(side = "left")
+# rframe = ttk.Frame(root)
+# rframe.pack(side = "right")
+view = Viewer(0)
+# btns = []
+mp = {}
 for idx, fname in enumerate(flist) :
-    b = ttk.Button(lframe, text = fname[13:15])
-    b.bind("<Button 1>", lambda e, i = idx : view.reset(idx = i))
-    # curious way to bind static
-    b.pack()
-    btns.append(b)
-restart = ttk.Button(lframe, text = "Restart", command = lambda e : view.reset())
-restart.pack()
+    mp[fname[13:15]] = idx
+rax = plt.axes([0.025, 0.2, 0.075, 0.6])
+radio = RadioButtons(rax, tuple(mp.keys()), active=0)
+radio.on_clicked(lambda label : view.reset(mp[label]))
+#     b.bind("<Button 1>", lambda e, i = idx : view.reset(idx = i))
+#     # curious way to bind static
+#     b.pack()
+#     btns.append(b)
+# restart = ttk.Button(lframe, text = "Restart", command = lambda e : view.reset())
+# restart.pack()
 
 view.start()
-tk.mainloop()
+plt.show()

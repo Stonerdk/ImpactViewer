@@ -7,8 +7,6 @@ from matplotlib import pyplot as plt
 from matplotlib.widgets import RadioButtons
 
 def get_impact_time(filename):
-    coplist = []
-    imapct = -1
     with open(f"{filename}", "r") as f:
         cops, time, tlist, mtime, mratio = [], 0, [], 0, 0
         for line in f.readlines():
@@ -19,22 +17,20 @@ def get_impact_time(filename):
             if ls != 0 and rs != 0:
                 xs = np.dot(dlist, np.tile(np.arange(16, 32), 20))
                 ys = np.dot(dlist, np.repeat(np.arange(19, -1, -1), 16)) + 30 * rs
-                cops.append((time, xs / rs, ys / rs))
+                cops.append([time, xs / rs, ys / rs])
                 sratio = rs / ls
                 if sratio > mratio:
                     mtime, mratio = time, sratio
             time += 1
-        prev = cops[0]
-        for time, xcop, ycop in cops[1:]:
-            tprev, xprev, yprev = prev
-            tlist.append((time, ((xcop - xprev) ** 2 + (ycop - yprev) ** 2) / (time - tprev)))
-            prev = (time, xcop, ycop)
-        impact = max(tlist[mtime:], key = lambda x : x[1])[0]
-    return cops, impact
+        cops = np.array(cops)
 
-class ImpactGraph:
-    def __init__(self, filename):
-        cops, impact = get_impact_time(filename)
+        for i in range(1, len(cops)):
+            dt, dx, dy = cops[i] - cops[i - 1]
+            tlist.append([cops[i][0], (dx ** 2 + dy ** 2) / dt])
+        tlist = np.array(tlist)
+        argm = mtime + np.argmax(tlist[mtime:,1])
+        impact = int(tlist[argm,0])
+    return cops, impact
 
 class Viewer:
     def __init__(self, idx):
@@ -42,16 +38,14 @@ class Viewer:
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111)
         self.setup(idx)
-        # self.canvas = FigureCanvasTkAgg(self.fig, master = root)
-        # self.canvas.get_tk_widget().pack(fill='both', expand=True)
-        # self.canvas.get_tk_widget().bind('r', lambda event : self.reset())
 
     def setup(self, idx):
         self.idx = idx
         self.data = coplist[idx]
-        self.time, self.x, self.y = list(zip(*self.data))
-        self.xy = list(zip(self.x, self.y))
+        self.time, self.x, self.y = self.data.T
+        self.xy = self.data[:, 1:]
         self.length = len(self.data)
+
         self.line, = self.ax.plot(self.x, self.y) # simply align xy range
         self.scat = self.ax.scatter(self.x[0], self.y[0])
         self.imp_ans = self.ax.scatter(self.x[impacts[idx]], self.y[impacts[idx]], c = "red", linewidths = 14)
@@ -61,7 +55,6 @@ class Viewer:
     def reset(self, idx = -1):
         global coplist
         if idx != -1:
-            print(idx)
             self.ax.cla()
             self.setup(idx)
         self.pause = False
@@ -80,23 +73,14 @@ class Viewer:
         self.anim = FuncAnimation(self.fig, self.animate, interval = 30)
 
 # initlaize COP lists first
+sizes = 13
 impacts = [59, 67, 86, 81, 50, 51, 61, 61, 65, 57, 61, 58, 56]
 flist = glob("./data/*.txt")
-coplist, sol = zip(*[get_impact_time(f) for f in flist])
-coplist = list(coplist)
-sol = list(sol)
+impacttime = [get_impact_time(f) for f in flist]
+coplist, sol = map(list, zip(*impacttime))
 
-for si, s in enumerate(sol):
-    print(flist[si], " : evaluated impact time = ", s, "real impact time = ", impacts[si], "error = ", impacts[si] - s)
-
-# initialize TK gui and figure
-# root = tk.Tk()
-# root.attributes('-fullscreen', True)
-# root.title("Impact Viewer")
-# lframe = ttk.Frame(root)
-# lframe.pack(side = "left")
-# rframe = ttk.Frame(root)
-# rframe.pack(side = "right")
+for si in range(sizes):
+    print(flist[si], " : evaluated impact time = ", sol[si], "real impact time = ", impacts[si], "error = ", impacts[si] - sol[si])
 view = Viewer(0)
 # btns = []
 mp = {}
@@ -105,12 +89,6 @@ for idx, fname in enumerate(flist) :
 rax = plt.axes([0.025, 0.2, 0.075, 0.6])
 radio = RadioButtons(rax, tuple(mp.keys()), active=0)
 radio.on_clicked(lambda label : view.reset(mp[label]))
-#     b.bind("<Button 1>", lambda e, i = idx : view.reset(idx = i))
-#     # curious way to bind static
-#     b.pack()
-#     btns.append(b)
-# restart = ttk.Button(lframe, text = "Restart", command = lambda e : view.reset())
-# restart.pack()
 
 view.start()
 plt.show()

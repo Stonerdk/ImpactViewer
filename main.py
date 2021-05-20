@@ -8,7 +8,8 @@ from matplotlib.widgets import RadioButtons
 
 def get_impact_time(filename):
     with open(f"{filename}", "r") as f:
-        cops, time, tlist, mtime, mratio = [], 0, [], 0, 0
+        cops, time, tlist, mtime, midx, mratio = [], 0, [], 0, 0, 0
+        idx = 0
         for line in f.readlines():
             dlist = [int(x) for x in line[21:].split(',')]
             ls = sum(dlist[0:160] + dlist[320:480])
@@ -20,16 +21,15 @@ def get_impact_time(filename):
                 cops.append([time, xs / rs, ys / rs])
                 sratio = rs / ls
                 if sratio > mratio:
-                    mtime, mratio = time, sratio
+                    midx, mtime, mratio = idx, time, sratio
+                idx += 1
             time += 1
         cops = np.array(cops)
-
-        for i in range(1, len(cops)):
+        for i in range(midx + 1, len(cops)):
             dt, dx, dy = cops[i] - cops[i - 1]
             tlist.append([cops[i][0], (dx ** 2 + dy ** 2) / dt])
         tlist = np.array(tlist)
-        argm = mtime + np.argmax(tlist[mtime:,1])
-        impact = int(tlist[argm,0])
+        impact = midx + np.argmax(tlist[:,1]) + 1
     return cops, impact
 
 class Viewer:
@@ -46,9 +46,9 @@ class Viewer:
         self.xy = self.data[:, 1:]
         self.length = len(self.data)
 
-        self.line, = self.ax.plot(self.x, self.y) # simply align xy range
+        self.line, = self.ax.plot(self.x, self.y) 
         self.scat = self.ax.scatter(self.x[0], self.y[0])
-        self.imp_ans = self.ax.scatter(self.x[impacts[idx]], self.y[impacts[idx]], c = "red", linewidths = 14)
+        # self.imp_ans = self.ax.scatter(self.x[impacts[idx]], self.y[impacts[idx]], c = "red", linewidths = 14)
         self.imp_eval = self.ax.scatter(self.x[sol[idx]], self.y[sol[idx]], c = "blue", linewidths = 10) 
         self.pause = False
 
@@ -65,28 +65,28 @@ class Viewer:
             self.line.set_data(self.x[:i + 1], self.y[:i + 1])
             self.scat.set_offsets(self.xy[:i + 1])
             self.imp_eval.set_alpha(1.0 if i >= sol[self.idx] else 0)
-            self.imp_ans.set_alpha(1.0 if i >= impacts[self.idx] else 0)
+            # self.imp_ans.set_alpha(1.0 if i >= impacts[self.idx] else 0)
             if i == len(self.x) - 1:
                 self.pause = True 
     
     def start(self):
-        self.anim = FuncAnimation(self.fig, self.animate, interval = 30)
+        self.anim = FuncAnimation(self.fig, self.animate, interval = 20)
 
 # initlaize COP lists first
-sizes = 13
 impacts = [59, 67, 86, 81, 50, 51, 61, 61, 65, 57, 61, 58, 56]
-flist = glob("./data/*.txt")
+
+flist = glob("./data/*.txt") + glob("./data/saved_util/*.txt") + glob("./data/saved_wood/*.txt")
+
 impacttime = [get_impact_time(f) for f in flist]
 coplist, sol = map(list, zip(*impacttime))
 
-for si in range(sizes):
-    print(flist[si], " : evaluated impact time = ", sol[si], "real impact time = ", impacts[si], "error = ", impacts[si] - sol[si])
+for si in range(len(flist)):
+    print(flist[si], " : evaluated impact time = ", sol[si])
 view = Viewer(0)
-# btns = []
 mp = {}
 for idx, fname in enumerate(flist) :
-    mp[fname[13:15]] = idx
-rax = plt.axes([0.025, 0.2, 0.075, 0.6])
+    mp[fname[6:]] = idx
+rax = plt.axes([0.025, 0.2, 0.15, 0.6])
 radio = RadioButtons(rax, tuple(mp.keys()), active=0)
 radio.on_clicked(lambda label : view.reset(mp[label]))
 
